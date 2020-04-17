@@ -1,0 +1,10 @@
+*.h5
+*.pyc
+*.cmap
+.vscode/
+__pycache__/
+.ipynb_checkpoints/
+.idea/
+build/
+dist/
+pyimagetool_kgord831.egg-info

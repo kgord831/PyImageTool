@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>TransposeAxes</class>
+ <widget class="QWidget" name="TransposeAxes">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>224</width>
+    <height>152</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="3" column="2">
+    <widget class="QRadioButton" name="table20">
+     <property name="text">
+      <string>0</string>
+     </property>
+     <attribute name="buttonGroup">
+      <string notr="true">row2</string>
+     </attribute>
+    </widget>
+   </item>
+   <item row="2" column="3">
+    <widget class="QRadioButton" name="table11">
+     <property name="text">
+      <string>1</string>
+     </property>
+     <attribute name="buttonGroup">
+      <string notr="true">row1</string>
+     </attribute>
+    </widget>
+   </item>
+   <item row="4" column="2">
+    <widget class="QRadioButton" name="table30">
+     <property name="text">
+      <string>0</string>
+     </property>
+     <attribute name="buttonGroup">
+      <string notr="true">row3</string>
+     </attribute>
+    </widget>
+   </item>
+   <item row="2" column="4">
+    <widget class="QRadioButton" name="table12">
+     <property name="text">
+      <string>2</string>
+     </property>
+     <attribute name="buttonGroup">
+      <string notr="true">row1</string>
+     </attribute>
+    </widget>
+   </item>
+   <item row="5" column="0" colspan="3">
+    <widget class="QPushButton" name="okButton">
+     <property name="text">
+      <string>OK</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="label">
+     <property name="text">
+      <string>0</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="5">
+    <widget class="QRadioButton" name="table33">
+     <property name="text">
+      <string>3</string>
+     </property>
+     <attribute name="buttonGroup">
+      <string notr="true">row3</string>
+     </attribute>
+    </widget>
+   </item>
+   <item row="1" column="3">
+    <widget class="QRadioButton" name="table01">
+     <property name="text">
+      <string>1</string>
+     </property>
+     <attribute name="buttonGroup">
+      <string notr="true">row0</string>
+     </attribute>
+    </widget>
+   </item>
+   <item row="3" column="3">
+    <widget class="QRadioButton" name="table21">
+     <property name="text">
+      <string>1</string>
+     </property>
+     <attribute name="buttonGroup">
+      <string notr="true">row2</string>
+     </attribute>
+    </widget>
+   </item>
+   <item row="4" column="4">
+    <widget class="QRadioButton" name="table32">
+     <property name="text">
+      <string>2</string>
+     </property>
+     <attribute name="buttonGroup">
+      <string notr="true">row3</string>
+     </attribute>
+    </widget>
+   </item>
+   <item row="1" column="4">
+    <widget class="QRadioButton" name="table02">
+     <property name="text">
+      <string>2</string>
+     </property>
+     <attribute name="buttonGroup">
+      <string notr="true">row0</string>
+     </attribute>
+    </widget>
+   </item>
+   <item row="2" column="2">
+    <widget class="QRadioButton" name="table10">
+     <property name="text">
+      <string>0</string>
+     </property>
+     <attribute name="buttonGroup">
+      <string notr="true">row1</string>
+     </attribute>
+    </widget>
+   </item>
+   <item row="0" column="0">
+    <widget class="QLabel" name="label_5">
+     <property name="text">
+      <string>Current Dim</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="5">
+    <widget class="QRadioButton" name="table13">
+     <property name="text">
+      <string>3</string>
+     </property>
+     <attribute name="buttonGroup">
+      <string notr="true">row1</string>
+     </attribute>
+    </widget>
+   </item>
+   <item row="3" column="0">
+    <widget class="QLabel" name="label_3">
+     <property name="text">
+      <string>2</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="label_2">
+     <property name="text">
+      <string>1</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="5">
+    <widget class="QRadioButton" name="table23">
+     <property name="text">
+      <string>3</string>
+     </property>
+     <attribute name="buttonGroup">
+      <string notr="true">row2</string>
+     </attribute>
+    </widget>
+   </item>
+   <item row="0" column="1" rowspan="5">
+    <widget class="Line" name="line">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="4">
+    <widget class="QRadioButton" name="table22">
+     <property name="text">
+      <string>2</string>
+     </property>
+     <attribute name="buttonGroup">
+      <string notr="true">row2</string>
+     </attribute>
+    </widget>
+   </item>
+   <item row="0" column="2" colspan="4">
+    <widget class="QLabel" name="label_6">
+     <property name="text">
+      <string>New Dim</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="3">
+    <widget class="QRadioButton" name="table31">
+     <property name="text">
+      <string>1</string>
+     </property>
+     <attribute name="buttonGroup">
+      <string notr="true">row3</string>
+     </attribute>
+    </widget>
+   </item>
+   <item row="1" column="5">
+    <widget class="QRadioButton" name="table03">
+     <property name="text">
+      <string>3</string>
+     </property>
+     <attribute name="buttonGroup">
+      <string notr="true">row0</string>
+     </attribute>
+    </widget>
+   </item>
+   <item row="4" column="0">
+    <widget class="QLabel" name="label_4">
+     <property name="text">
+      <string>3</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="2">
+    <widget class="QRadioButton" name="table00">
+     <property name="text">
+      <string>0</string>
+     </property>
+     <attribute name="buttonGroup">
+      <string notr="true">row0</string>
+     </attribute>
+    </widget>
+   </item>
+   <item row="5" column="3" colspan="3">
+    <widget class="QPushButton" name="cancelButton">
+     <property name="text">
+      <string>Cancel</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+ <buttongroups>
+  <buttongroup name="row0"/>
+  <buttongroup name="row1"/>
+  <buttongroup name="row2"/>
+  <buttongroup name="row3"/>
+ </buttongroups>
+</ui>
