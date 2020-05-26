@@ -3,9 +3,10 @@ from .PGImageTool import PGImageTool
 from .DataMatrix import RegularDataArray
 from pyqtgraph.Qt import QtCore, QtWidgets
 from functools import partial
-from .widgets import TransposeAxesWidget
+from typing import Union
 import pyqtgraph as pg
 import numpy as np
+import xarray as xr
 import warnings
 
 class ImageTool(QtWidgets.QWidget):
@@ -13,7 +14,7 @@ class ImageTool(QtWidgets.QWidget):
     LayoutComplete = PGImageTool.LayoutComplete
     LayoutRaster = PGImageTool.LayoutRaster
 
-    def __init__(self, data: RegularDataArray, layout: int = PGImageTool.LayoutSimple, parent=None):
+    def __init__(self, data: Union[RegularDataArray, np.array, xr.DataArray], layout: int = PGImageTool.LayoutSimple, parent=None):
         """
         Possible Layouts are PGImageTool.LayoutSimple, LayoutComplete, LayoutRaster
         """
@@ -23,13 +24,13 @@ class ImageTool(QtWidgets.QWidget):
             warnings.warn('Input data contains NaNs. All NaN will be set to 0.')
             data.values[np.isnan(data.values)] = 0
         # Create data
-        self.data: RegularDataArray = data
+        self.data: RegularDataArray = RegularDataArray(data)
         self.it_layout: int = layout
         # Create info bar and ImageTool PyQt Widget
-        self.info_bar = InfoBar(data, parent=self)
+        self.info_bar = InfoBar(self.data, parent=self)
         self.pg_widget = QtWidgets.QWidget()  # widget to hold pyqtgraph graphicslayout
         self.pg_widget.setLayout(QtWidgets.QVBoxLayout())
-        self.pg_win = PGImageTool(data, layout=layout)  # the pyqtgraph graphicslayout
+        self.pg_win = PGImageTool(self.data, layout=layout)  # the pyqtgraph graphicslayout
         self.pg_widget.layout().addWidget(self.pg_win)
         # Build the layout
         self.setLayout(QtWidgets.QVBoxLayout())

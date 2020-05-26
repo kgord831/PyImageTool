@@ -185,8 +185,10 @@ class PGImageTool(pg.GraphicsLayoutWidget):
                 self.imgs['zy'].getViewBox().sigRangeChangedManually.connect(onSigZYRangeChanged)
         if self.data.ndim == 4:
             self.lineplots['y'] = (self.addPlot(), 'v')
-            self.imgs['xy'] = self.addPlot()
-            self.imgs['zt'] = self.addPlot()
+            self.imgs['xy'] = ImageSlice()
+            self.addItem(self.imgs['xy'])
+            self.imgs['zt'] = ImageSlice()
+            self.addItem(self.imgs['zt'])
             self.lineplots['t'] = (self.addPlot(), 'v')
             self.nextRow()
             self.nextCol()

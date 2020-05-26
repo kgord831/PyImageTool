@@ -19,7 +19,16 @@ class RegularDataArray(object):
         """
         if dat is None:
             return
+        if isinstance(dat, RegularDataArray):
+            self._data = dat._data.copy()
+            self.axes = dat.axes
+            self.delta = dat.delta
+            self.coord_min = dat.coord_min
+            self.coord_max = dat.coord_max
+            return
         if isinstance(dat, xr.DataArray):
+            if axes is None:
+                axes = [dat[dimlabel].values for dimlabel in dat.dims]
             dat = dat.values
         self.delta = np.ones(dat.ndim)
         self.coord_min = np.zeros(dat.ndim)
