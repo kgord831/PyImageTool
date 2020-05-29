@@ -5,9 +5,8 @@ from pyqtgraph.GraphicsScene.mouseEvents import HoverEvent
 from .DataMatrix import RegularDataArray
 from .ImageSlice import ImageSlice
 from .CMapEditor import load_ct
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple
 from functools import partial
-import os
 
 
 class PGImageTool(pg.GraphicsLayoutWidget):
@@ -35,8 +34,8 @@ class PGImageTool(pg.GraphicsLayoutWidget):
         self.lineplots: Dict[str, Tuple[pg.PlotItem, str]] = {}  # dict of (PlotItem, orient), orient = 'h' or 'v'
         self.lineplots_data: Dict[str, Tuple[pg.PlotDataItem, str]] = {}  # dict of PlotDataItems, orient = 'h' or 'v'
         self.cursor_lines: Dict[str, List[InfiniteLineBinning]] = {}  # dict of cursor lines for 'x', 'y', 'z', etc.
-        self.bin_widths: List[SingleValueModel] = \
-            [SingleValueModel(1.0) for i in range(data.ndim)]  # each dimension has a bin width
+        # self.bin_widths: List[SingleValueModel] = \
+        #     [SingleValueModel(1.0) for i in range(data.ndim)]  # each dimension has a bin width
         self.imgs: Dict[str, ImageSlice] = {}  # a dictionary of ImageItems
         self.img_tr: Dict[str, QtGui.QTransform] = {}  # a dictionary of transforms going from index to coordinates
         self.img_tr_inv: Dict[str, QtGui.QTransform] = {}  # a dictionary of transforms going from coordinates to index
@@ -61,11 +60,8 @@ class PGImageTool(pg.GraphicsLayoutWidget):
         """
         When it's time to update the data represented by this image tool, update all properties
         """
-        # Reset cursor and bin widths
-        for bw in self.bin_widths:
-            bw.val = 1
         for i in range(self.data.ndim):
-            self.cursor.set[i](0)
+            self.cursor.set_index(i, 0)
         # Set the new data
         self.data = data
         # Update the line cuts
@@ -109,11 +105,9 @@ class PGImageTool(pg.GraphicsLayoutWidget):
                             line.reset(axis_min=self.data.coord_min[j], axis_delta=self.data.delta[j],
                                        bounds=(self.data.coord_min[j], self.data.coord_max[j]))
             else:
-                raise RuntimeError("A key in the imgs and lineplots dictionary has lenght {0}".format(len(coord)))
+                raise RuntimeError("A key in the imgs and lineplots dictionary has length {0}".format(len(coord)))
         # Update the cursor object
         self.cursor.reset(data)
-        for i in range(self.data.ndim):
-            self.cursor.set[i](0, force=True)
 
     def build_layout(self):
         # 1 dimension has a trivial layout
@@ -223,9 +217,9 @@ class PGImageTool(pg.GraphicsLayoutWidget):
                     'bounds': (self.data.coord_min[i], self.data.coord_max[i])}
             cursor_line = InfiniteLineBinning(**args)
             cursor_line.addToItem(plotitem)
-            cursor_line.sigDragged.connect(getattr(self.cursor, 'set_' + self.index_to_coord[i]))
+            cursor_line.sigDragged.connect(partial(self.cursor.set_pos, i))
             self.cursor.pos[i].value_changed.connect(cursor_line.update_value)
-            self.bin_widths[i].value_changed.connect(cursor_line.update_binwidth)
+            self.cursor.bin_width[i].value_changed.connect(cursor_line.update_binwidth)
             self.cursor_lines[key] = [cursor_line]  # guaranteed to be the only item
 
         # Create an image item corresponding to each axis
@@ -253,12 +247,12 @@ class PGImageTool(pg.GraphicsLayoutWidget):
                      'bounds': (self.data.coord_min[j], self.data.coord_max[j])}
             vert_cursor = InfiniteLineBinning(**args1)
             horz_cursor = InfiniteLineBinning(**args2)
-            vert_cursor.sigDragged.connect(getattr(self.cursor, 'set_' + self.index_to_coord[i]))
+            vert_cursor.sigDragged.connect(partial(self.cursor.set_pos, i))
             self.cursor.pos[i].value_changed.connect(vert_cursor.update_value)
-            horz_cursor.sigDragged.connect(getattr(self.cursor, 'set_' + self.index_to_coord[j]))
+            horz_cursor.sigDragged.connect(partial(self.cursor.set_pos, j))
             self.cursor.pos[j].value_changed.connect(horz_cursor.update_value)
-            self.bin_widths[i].value_changed.connect(vert_cursor.update_binwidth)
-            self.bin_widths[j].value_changed.connect(horz_cursor.update_binwidth)
+            self.cursor.bin_width[i].value_changed.connect(vert_cursor.update_binwidth)
+            self.cursor.bin_width[j].value_changed.connect(horz_cursor.update_binwidth)
             axis0, axis1 = tuple(key)
             if axis0 in self.cursor_lines:
                 self.cursor_lines[axis0].append(vert_cursor)
@@ -285,14 +279,14 @@ class PGImageTool(pg.GraphicsLayoutWidget):
             for j in range(self.data.ndim):
                 if j != i:
                     self.cursor.index[j].value_changed.connect(partial(self.update_line, i, plot_item, orientation))
-                    self.bin_widths[j].value_changed.connect(partial(self.update_line, i, plot_item, orientation))
+                    self.cursor.bin_width[j].value_changed.connect(partial(self.update_line, i, plot_item, orientation))
         for key, img_ax in self.imgs.items():
             # Wire up events
             i, j = self.coord_to_index[key]
             for k in range(self.data.ndim):
                 if k != i and k != j:
                     self.cursor.index[k].value_changed.connect(partial(self.update_img, i, j, img_ax.img))
-                    self.bin_widths[k].value_changed.connect(partial(self.update_img, i, j, img_ax.img))
+                    self.cursor.bin_width[k].value_changed.connect(partial(self.update_img, i, j, img_ax.img))
 
     def update_img(self, i: int, j: int, img: pg.ImageItem):
         """Template function for creating image update callback functions.
@@ -317,7 +311,7 @@ class PGImageTool(pg.GraphicsLayoutWidget):
     def data_slice1d(self, index: int) -> np.array:
         """Given a dimension index, return a 1d array that slices through cursor position at index"""
         # Start at cursor indices
-        data_slice = [self.cursor_lines[self.index_to_coord[i]][0].binslice for i in range(self.data.ndim)]
+        data_slice = [self.cursor.get_index_slice(i) for i in range(self.data.ndim)]
         # Grab all values for index
         data_slice[index] = slice(None)
         # Average over all dimensions except for index
@@ -327,7 +321,7 @@ class PGImageTool(pg.GraphicsLayoutWidget):
 
     def data_slice2d(self, i: int, j: int) -> np.array:
         """Given two dimensions, return a 2d array that slices through cursor position at i, j"""
-        data_slice = [self.cursor_lines[self.index_to_coord[i]][0].binslice for i in range(self.data.ndim)]
+        data_slice = [self.cursor.get_index_slice(i) for i in range(self.data.ndim)]
         data_slice[i] = slice(None)
         data_slice[j] = slice(None)
         avg_over = tuple([x for x in range(self.data.ndim) if x != i and x != j])
@@ -353,17 +347,15 @@ class PGImageTool(pg.GraphicsLayoutWidget):
     def set_crosshair_to_mouse(self):
         if self.mouse_panel[:3] == 'lin':
             coord = self.mouse_panel[-1]
-            set_method = getattr(self.cursor, 'set_' + coord)
+            i = self.coord_to_index[coord]
             if self.lineplots[coord][1] == 'h':
-                set_method(self.mouse_pos.x())
+                self.cursor.set_pos(i, self.mouse_pos.x())
             else:
-                set_method(self.mouse_pos.y())
+                self.cursor.set_pos(i, self.mouse_pos.y())
         elif self.mouse_panel[:3] == 'img':
             i, j = self.coord_to_index[self.mouse_panel[-2:]]
-            setx = getattr(self.cursor, 'set_' + ['x', 'y', 'z', 't'][i])
-            sety = getattr(self.cursor, 'set_' + ['x', 'y', 'z', 't'][j])
-            setx(self.mouse_pos.x())
-            sety(self.mouse_pos.y())
+            self.cursor.set_pos(i, self.mouse_pos.x())
+            self.cursor.set_pos(j, self.mouse_pos.y())
         else:
             raise NotImplementedError("Mouse panel {0} is unknown".format(self.mouse_panel))
 
@@ -402,86 +394,108 @@ class PGImageTool(pg.GraphicsLayoutWidget):
             if self.shift_down:
                 self.set_crosshair_to_mouse()
 
+
 class Cursor:
     """An object that holds a list of current index and position of the cursor location. Warning: this function
     will raise a list indexing error if you access y, z, or t variables on data which does not have that as a
-    dimension."""
+    dimension.
+    """
     def __init__(self, data: RegularDataArray):
         """
-        self.data Regular spaced data, which will be used to calculate how to transform axis to coordinate
-        self.index List of index models
-        self.pos List of positions
-        self.set Dictionary of set functions. set[0](5) will set the index of axis 0 to 5. set['x'](-3.4) will set the
-                 position of axis 0 to -3.4.
+        :param data: Regular spaced data, which will be used to calculate how to transform axis to coordinate
         """
         self.data = data
-        self.index: List[SingleValueModel] = [SingleValueModel(0) for i in range(data.ndim)]
-        self.pos: List[SingleValueModel] = [SingleValueModel(float(self.data.coord_min[i])) for i in range(data.ndim)]
-        self.set: Dict[Union[str, int], object] = {}
-        for i in range(data.ndim):
-            coord = PGImageTool.index_to_coord[i]
-            setattr(self, 'set_' + coord, partial(self.set_pos_template, i))
-            self.set[coord] = getattr(self, 'set_' + ['x', 'y', 'z', 't'][i])
-        for i in range(data.ndim):
-            setattr(self, 'set_i' + ['x', 'y', 'z', 't'][i], partial(self.set_index_template, i))
-            self.set[i] = getattr(self, 'set_i' + ['x', 'y', 'z', 't'][i])
+        self._index: List[SingleValueModel] = [SingleValueModel(0) for i in range(data.ndim)]
+        self._pos: List[SingleValueModel] = [SingleValueModel(float(self.data.coord_min[i])) for i in range(data.ndim)]
+        self._binwidth: List[SingleValueModel] = [SingleValueModel(data.delta[i]) for i in range(data.ndim)]
+        self._binpos: List[List[float]] = [[0, 0] for i in range(data.ndim)]
 
-    def set_pos_template(self, i, newval, force=False):
+    @property
+    def pos(self):
+        return self._pos
+
+    @property
+    def index(self):
+        return self._index
+
+    @property
+    def bin_width(self):
+        return self._binwidth
+
+    def get_pos(self, axis):
+        if isinstance(axis, str):
+            i = PGImageTool.coord_to_index[axis]
+        else:
+            i = int(axis)
+        return self._pos[i].val
+
+    def get_index(self, axis):
+        if isinstance(axis, str):
+            i = PGImageTool.coord_to_index[axis]
+        else:
+            i = int(axis)
+        return self._index[i].val
+
+    def get_index_slice(self, i):
+        if self._binwidth[i].val <= self.data.delta[i]:
+            return slice(self._index[i].val, self._index[i].val + 1)
+        else:
+            mn = int(np.ceil(self.data.scale_to_index(i, self._binpos[i][0])))
+            mx = int(np.floor(self.data.scale_to_index(i, self._binpos[i][1])))
+            return slice(mn, mx)
+
+    def get_binwidth(self, i):
+        return self._binwidth[i].val
+
+    def set_pos(self, i, newval, force=False):
         newval = min(max(self.data.coord_min[i], newval), self.data.coord_max[i])
         newindex = int(np.round((newval - self.data.coord_min[i])/self.data.delta[i]))
-        self.pos[i].val = newval
-        if force or newindex != self.index[i].val:
-            self.index[i].val = newindex
+        if force or newval != self._pos[i].val:
+            self._pos[i].val = newval
+            self._binpos[i][0] = min(max(self.data.coord_min[i], newval - self._binwidth[i].val / 2),
+                                     self.data.coord_max[i])
+            self._binpos[i][1] = min(max(self.data.coord_min[i], newval + self._binwidth[i].val / 2),
+                                     self.data.coord_max[i])
+        if force or newindex != self._index[i].val:
+            self._index[i].val = newindex
 
-    def set_index_template(self, i, newindex, force=False):
+    def set_index(self, i, newindex, force=False):
         newindex = min(max(0, round(newindex)), self.data.shape[i] - 1)
-        if force or newindex != self.index[i].val:
+        if force or newindex != self._index[i].val:
             newpos = self.data.coord_min[i] + newindex*self.data.delta[i]
-            self.index[i].val = newindex
-            self.pos[i].val = newpos
+            self._index[i].val = newindex
+            self._pos[i].val = newpos
+            self._binpos[i][0] = min(max(self.data.coord_min[i], newpos - self._binwidth[i].val / 2),
+                                     self.data.coord_max[i])
+            self._binpos[i][1] = min(max(self.data.coord_min[i], newpos + self._binwidth[i].val / 2),
+                                     self.data.coord_max[i])
+
+    def set_binwidth(self, i, newval, force=False):
+        newval = min(max(self.data.delta[i], newval),
+                     self.data.coord_max[i] - self.data.coord_min[i] + self.data.delta[i])
+        if force or newval != self._binwidth[i].val:
+            self._binpos[i][0] = min(max(self.data.coord_min[i], self._pos[i].val - newval / 2),
+                                     self.data.coord_max[i])
+            self._binpos[i][1] = min(max(self.data.coord_min[i], self._pos[i].val + newval / 2),
+                                     self.data.coord_max[i])
+            self._binwidth[i].val = newval
+
+    def set_binwidth_i(self, i, newindex, force=False):
+        newindex = min(max(1, round(newindex)), self.data.shape[i])
+        if force or newindex != int(round(self._binwidth[i].val / self.data.delta[i])):
+            new_width = newindex*self.data.delta[i]
+            self._binpos[i][0] = min(max(self.data.coord_min[i], self._pos[i].val - new_width / 2),
+                                     self.data.coord_max[i])
+            self._binpos[i][1] = min(max(self.data.coord_min[i], self._pos[i].val + new_width / 2),
+                                     self.data.coord_max[i])
+            self._binwidth[i].val = new_width
 
     def reset(self, data):
         self.data = data
-        for i in range(data.ndim):
-            coord = PGImageTool.index_to_coord[i]
-            setattr(self, 'set_' + coord, partial(self.set_pos_template, i))
-            self.set[coord] = getattr(self, 'set_' + ['x', 'y', 'z', 't'][i])
-        for i in range(data.ndim):
-            setattr(self, 'set_i' + ['x', 'y', 'z', 't'][i], partial(self.set_index_template, i))
-            self.set[i] = getattr(self, 'set_i' + ['x', 'y', 'z', 't'][i])
-
-    def set_ix(self, newval: float) -> None:
-        """Function implemented at runtime based on dimensionality of data. Set the index of dimension 0."""
-        raise NotImplementedError("Coordinate does not exist!")
-
-    def set_iy(self, newval: float) -> None:
-        """Function implemented at runtime based on dimensionality of data. Set the index of dimension 1."""
-        raise NotImplementedError("Coordinate does not exist!")
-
-    def set_iz(self, newval: float) -> None:
-        """Function implemented at runtime based on dimensionality of data. Set the index of dimension 2."""
-        raise NotImplementedError("Coordinate does not exist!")
-
-    def set_it(self, newval: float) -> None:
-        """Function implemented at runtime based on dimensionality of data. Set the index of dimension 3."""
-        raise NotImplementedError("Coordinate does not exist!")
-
-    def set_x(self, newval: float) -> None:
-        """Function implemented at runtime based on dimensionality of data. Set the coord of dimension 0."""
-        raise NotImplementedError("Coordinate does not exist!")
-
-    def set_y(self, newval: float) -> None:
-        """Function implemented at runtime based on dimensionality of data. Set the coord of dimension 1."""
-        raise NotImplementedError("Coordinate does not exist!")
-
-    def set_z(self, newval: float) -> None:
-        """Function implemented at runtime based on dimensionality of data. Set the coord of dimension 2."""
-        raise NotImplementedError("Coordinate does not exist!")
-
-    def set_t(self, newval: float) -> None:
-        """Function implemented at runtime based on dimensionality of data. Set the coord of dimension 3."""
-        raise NotImplementedError("Coordinate does not exist!")
-
+        for i in range(self.data.ndim):
+            self._index[i].val = 0
+            self._pos[i].val = float(self.data.coord_min[i])
+            self._binwidth[i].val = data.delta[i]
 
 class SingleValueModel(QtCore.QObject):
     """A cursor position is either a float or int (determined at instantiation) and preserves the type in assignment.
@@ -544,9 +558,13 @@ class InfiniteLineBinning(pg.GraphicsObject):
     def binwidth(self):
         return self._binwidth
 
-    @binwidth.setter
-    def binwidth(self, idx):
-        self._binwidth = int(round(idx))
+    # @binwidth.setter
+    # def binwidth(self, idx):
+    #     self._binwidth = int(round(idx))
+    #     self.updateBinLines()
+
+    def set_binwidth(self, val):
+        self._binwidth = int(round(val / self.delta))
         self.updateBinLines()
 
     @property
@@ -614,5 +632,5 @@ class InfiniteLineBinning(pg.GraphicsObject):
 
     @QtCore.pyqtSlot(object)
     def update_binwidth(self, newwidth):
-        self.binwidth = newwidth
+        self.set_binwidth(newwidth)
         self.updateBinLines()

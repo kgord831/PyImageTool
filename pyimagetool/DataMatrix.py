@@ -11,11 +11,11 @@ class RegularDataArray(object):
     """
 
     def __init__(self, dat=None, axes=None, delta=None, coord_min=None):
-        """
-        Build data using a numpy array. Must provide one of the following:
-        - An iterable of axes, where each axis is a numpy array
-        - An interable of delta and coord_min
-        Guarantees regularly gridded coordinates and sorts data so that coordinates are ascending
+        """Create an instance of a RegularDataArray
+        :param dat: RegularDataArray, xarray.DataArray, or numpy.array
+        :param axes: Iterable of numpy arrays representing coordinates
+        :param delta: Iterable representing the delta for each axis
+        :param coord_min: Iterable representing the offset/coord_min for each axis
         """
         if dat is None:
             return
@@ -97,6 +97,18 @@ class RegularDataArray(object):
             new_tr[i] = self.data.dims[j]
         return self.from_xarray(self.data.transpose(*new_tr))
 
+    def index_to_scale(self, axis, i):
+        """Retrieve the coordinate corresponding to index i
+        :return: float representing the coordinate value of index i
+        """
+        return self.coord_min[axis] + self.delta[axis]*i
+
+    def scale_to_index(self, axis, coord_val):
+        """Retrieve the index (may not be an integer) representing coord_val on axis
+        :return: float representing index of coordinate
+        """
+        return (coord_val - self.coord_min[axis])/self.delta[axis]
+
     @property
     def T(self):
         return self.from_xarray(self.data.T)
@@ -122,6 +134,10 @@ class RegularDataArray(object):
     @property
     def shape(self):
         return self._data.shape
+
+    @property
+    def offset(self):
+        return self.coord_min
 
     @staticmethod
     def from_numpy_array(dat: np.array, axes=None, delta=None, coord_min=None):
@@ -186,6 +202,10 @@ class RegularSpacedData(object):
 
     @property
     def dims(self) -> int:
+        return self._data.ndim
+
+    @property
+    def ndim(self) -> int:
         return self._data.ndim
 
     def slice(self, *index):

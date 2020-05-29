@@ -9,14 +9,18 @@ import numpy as np
 import xarray as xr
 import warnings
 
+
 class ImageTool(QtWidgets.QWidget):
     LayoutSimple = PGImageTool.LayoutSimple
     LayoutComplete = PGImageTool.LayoutComplete
     LayoutRaster = PGImageTool.LayoutRaster
 
-    def __init__(self, data: Union[RegularDataArray, np.array, xr.DataArray], layout: int = PGImageTool.LayoutSimple, parent=None):
-        """
-        Possible Layouts are PGImageTool.LayoutSimple, LayoutComplete, LayoutRaster
+    def __init__(self, data: Union[RegularDataArray, np.array, xr.DataArray],
+                 layout: int = PGImageTool.LayoutSimple, parent=None):
+        """Create an ImageTool QWidget.
+        :param data: A RegularDataArray, numpy.array, or xarray.DataArray
+        :param layout: An int that defines the layout. See PGImageTool for layout definitions
+        :param parent: QWidget that will be this widget's parent
         """
         super().__init__(parent)
         # Warn user about nan
@@ -48,12 +52,13 @@ class ImageTool(QtWidgets.QWidget):
         self.info_bar.transpose_request.connect(self.transpose_data)
 
     def update_status_bar(self, msg: tuple):
+        """Slot for mouse move signal"""
         self.status_bar.showMessage(msg[0])
 
     def build_handlers(self):
         # Connect index spin box to model
         for i, sb in enumerate(self.info_bar.cursor_i):
-            sb.valueChanged.connect(self.pg_win.cursor.set[i])
+            sb.valueChanged.connect(partial(self.pg_win.cursor.set_index, i))
             self.pg_win.cursor.index[i].value_changed.connect(sb.setValue)
 
         # Connect coordinate spin box to model
@@ -64,33 +69,24 @@ class ImageTool(QtWidgets.QWidget):
             coord = self.pg_win.index_to_coord[i]
             dsb.editingFinished.connect(partial(on_cursor_dsb_changed,
                                                 dsb,
-                                                self.pg_win.cursor.set[coord]))
+                                                partial(self.pg_win.cursor.set_pos, i)))
             self.pg_win.cursor.pos[i].value_changed.connect(dsb.setValue)
 
         # Connect binwidth to model
-        def on_sb_binwidth_changed(binwidth_model, newval):
-            binwidth_model.val = newval
-
-        def on_dsb_binwidth_changed(binwidth_model, coord_delta, dsb: QtWidgets.QDoubleSpinBox):
-            idx = int(round(dsb.value() / coord_delta))
-            binwidth_model.val = idx
-
-        def on_binwidth_model_changed(sb: QtWidgets.QSpinBox, dsb: QtWidgets.QDoubleSpinBox, coord_delta, x):
-            sb.blockSignals(True)
-            sb.setValue(x)
-            sb.blockSignals(False)
-            dsb.blockSignals(True)
-            dsb.setValue(coord_delta * x)
-            dsb.blockSignals(False)
+        def binwidth_index_to_width(sb, delta, newvalue):
+            sb.setValue(int(round(newvalue/delta)))
 
         for i, sb in enumerate(self.info_bar.bin_i):
-            sb.valueChanged.connect(partial(on_sb_binwidth_changed, self.pg_win.bin_widths[i]))
-            self.info_bar.bin_c[i].editingFinished.connect(partial(on_dsb_binwidth_changed, self.pg_win.bin_widths[i],
-                                                                self.data.delta[i], self.info_bar.bin_c[i]))
-            self.pg_win.bin_widths[i].value_changed.connect(partial(on_binwidth_model_changed,
-                                                                    self.info_bar.bin_i[i],
-                                                                    self.info_bar.bin_c[i],
-                                                                    self.data.delta[i]))
+            sb.valueChanged.connect(partial(self.pg_win.cursor.set_binwidth_i, i))
+            self.pg_win.cursor.bin_width[i].value_changed.connect(partial(binwidth_index_to_width,
+                                                                          sb,
+                                                                          self.data.delta[i]))
+
+        for i, dsb in enumerate(self.info_bar.bin_c):
+            dsb.editingFinished.connect(partial(on_cursor_dsb_changed,
+                                                dsb,
+                                                partial(self.pg_win.cursor.set_binwidth, i)))
+            self.pg_win.cursor.bin_width[i].value_changed.connect(dsb.setValue)
 
     def reset(self):
         # Create info bar and ImageTool PyQt Widget
