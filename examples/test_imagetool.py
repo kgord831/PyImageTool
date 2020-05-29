@@ -1,8 +1,8 @@
 import sys
 import numpy as np
 from PyQt5 import QtWidgets, QtCore
-from pyimagetool.DataMatrix import RegularDataArray
-from pyimagetool.ImageTool import ImageTool
+from pyimagetool import ImageTool
+from pyimagetool import RegularDataArray
 
 def gen_data():
     # Generate data
@@ -42,7 +42,7 @@ app = QtWidgets.QApplication([])
 my_data = from_file()
 my_data = my_data.sel({'x': slice(-6, 6.62), 'y': slice(-12.4, 17.33), 'z': slice(20.93, 21.59)})
 
-image_tool = ImageTool(my_data, layout=ImageTool.LayoutSimple)
+image_tool = ImageTool(my_data, layout=ImageTool.LayoutComplete)
 
 image_tool.show()
 

@@ -73,20 +73,18 @@ class ImageTool(QtWidgets.QWidget):
             self.pg_win.cursor.pos[i].value_changed.connect(dsb.setValue)
 
         # Connect binwidth to model
-        def binwidth_index_to_width(sb, delta, newvalue):
-            sb.setValue(int(round(newvalue/delta)))
-
         for i, sb in enumerate(self.info_bar.bin_i):
             sb.valueChanged.connect(partial(self.pg_win.cursor.set_binwidth_i, i))
-            self.pg_win.cursor.bin_width[i].value_changed.connect(partial(binwidth_index_to_width,
-                                                                          sb,
-                                                                          self.data.delta[i]))
+            self.pg_win.cursor.bin_width[i].value_changed.connect(partial(self.binwidth_sb_handler, i, sb))
 
         for i, dsb in enumerate(self.info_bar.bin_c):
             dsb.editingFinished.connect(partial(on_cursor_dsb_changed,
                                                 dsb,
                                                 partial(self.pg_win.cursor.set_binwidth, i)))
             self.pg_win.cursor.bin_width[i].value_changed.connect(dsb.setValue)
+
+    def binwidth_sb_handler(self, i, sb, newval):
+        sb.setValue(int(round(newval/self.data.delta[i])))
 
     def reset(self):
         # Create info bar and ImageTool PyQt Widget

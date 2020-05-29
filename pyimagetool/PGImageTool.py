@@ -60,8 +60,9 @@ class PGImageTool(pg.GraphicsLayoutWidget):
         """
         When it's time to update the data represented by this image tool, update all properties
         """
-        for i in range(self.data.ndim):
-            self.cursor.set_index(i, 0)
+        self.cursor.reset()
+        # for i in range(self.data.ndim):
+        #     self.cursor.set_index(i, 0)
         # Set the new data
         self.data = data
         # Update the line cuts
@@ -451,11 +452,11 @@ class Cursor:
         newval = min(max(self.data.coord_min[i], newval), self.data.coord_max[i])
         newindex = int(np.round((newval - self.data.coord_min[i])/self.data.delta[i]))
         if force or newval != self._pos[i].val:
-            self._pos[i].val = newval
             self._binpos[i][0] = min(max(self.data.coord_min[i], newval - self._binwidth[i].val / 2),
                                      self.data.coord_max[i])
             self._binpos[i][1] = min(max(self.data.coord_min[i], newval + self._binwidth[i].val / 2),
                                      self.data.coord_max[i])
+            self._pos[i].val = newval
         if force or newindex != self._index[i].val:
             self._index[i].val = newindex
 
@@ -463,12 +464,12 @@ class Cursor:
         newindex = min(max(0, round(newindex)), self.data.shape[i] - 1)
         if force or newindex != self._index[i].val:
             newpos = self.data.coord_min[i] + newindex*self.data.delta[i]
-            self._index[i].val = newindex
-            self._pos[i].val = newpos
             self._binpos[i][0] = min(max(self.data.coord_min[i], newpos - self._binwidth[i].val / 2),
                                      self.data.coord_max[i])
             self._binpos[i][1] = min(max(self.data.coord_min[i], newpos + self._binwidth[i].val / 2),
                                      self.data.coord_max[i])
+            self._index[i].val = newindex
+            self._pos[i].val = newpos
 
     def set_binwidth(self, i, newval, force=False):
         newval = min(max(self.data.delta[i], newval),
@@ -490,12 +491,18 @@ class Cursor:
                                      self.data.coord_max[i])
             self._binwidth[i].val = new_width
 
-    def reset(self, data):
-        self.data = data
+    def reset(self, data=None):
+        if data is not None:
+            self.data = data
+            for i in range(self.data.ndim):
+                self._binwidth[i].set_val(self.data.delta[i], block=True)
+                self._binpos[i][0] = min(max(self.data.coord_min[i], self._pos[i].val - self.data.delta[i] / 2),
+                                         self.data.coord_max[i])
+                self._binpos[i][1] = min(max(self.data.coord_min[i], self._pos[i].val + self.data.delta[i] / 2),
+                                         self.data.coord_max[i])
         for i in range(self.data.ndim):
-            self._index[i].val = 0
-            self._pos[i].val = float(self.data.coord_min[i])
-            self._binwidth[i].val = data.delta[i]
+            self.set_index(i, 0, True)
+            self.set_binwidth_i(i, 1, True)
 
 class SingleValueModel(QtCore.QObject):
     """A cursor position is either a float or int (determined at instantiation) and preserves the type in assignment.
@@ -505,6 +512,14 @@ class SingleValueModel(QtCore.QObject):
     def __init__(self, val: object):
         super().__init__()
         self._val = val
+
+    def set_val(self, newval, block=False):
+        if type(self._val) is type(newval):
+            self._val = newval
+        else:
+            self._val = type(self._val)(newval)
+        if not block:
+            self.value_changed.emit(self._val)
 
     @property
     def val(self):
