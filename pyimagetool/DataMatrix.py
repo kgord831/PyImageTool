@@ -10,12 +10,13 @@ class RegularDataArray(object):
     defines properties relevant to the regular grid
     """
 
-    def __init__(self, dat=None, axes=None, delta=None, coord_min=None):
+    def __init__(self, dat=None, axes=None, delta=None, coord_min=None, dims=None):
         """Create an instance of a RegularDataArray
         :param dat: RegularDataArray, xarray.DataArray, or numpy.array
         :param axes: Iterable of numpy arrays representing coordinates
         :param delta: Iterable representing the delta for each axis
         :param coord_min: Iterable representing the offset/coord_min for each axis
+        :param dims: Iterable representing names of each dimension
         """
         if dat is None:
             return
@@ -60,13 +61,20 @@ class RegularDataArray(object):
         self.axes = [self.coord_min[i] + self.delta[i]*np.arange(dat.shape[i]) for i in range(dat.ndim)]
         self.coord_max = np.array([ax[-1] for ax in self.axes])
         coords = {}
-        label = ['x', 'y', 'z', 't']
-        for la, i in zip(label, range(dat.ndim)):
-            coords[la] = self.axes[i]
-        if dat.ndim > len(label):
-            for i in range(len(label), dat.ndim):
-                coords['dim_' + str(i)] = self.axes[i]
-        self._data: xr.DataArray = xr.DataArray(dat, dims=coords.keys(), coords=coords)
+        if dims is None:
+            label = ['x', 'y', 'z', 't']
+            for la, i in zip(label, range(dat.ndim)):
+                coords[la] = self.axes[i]
+            if dat.ndim > len(label):
+                for i in range(len(label), dat.ndim):
+                    coords['dim_' + str(i)] = self.axes[i]
+            dims = coords.keys()
+        else:
+            if len(dims) != len(self.axes):
+                raise ValueError('Not all dimensions are labelled')
+            for i, dim in enumerate(dims):
+                coords[dim] = self.axes[i]
+        self._data: xr.DataArray = xr.DataArray(dat, dims=dims, coords=coords)
 
     def data_updated(self, regular=True):
         if regular:
@@ -140,26 +148,26 @@ class RegularDataArray(object):
         return self.coord_min
 
     @staticmethod
-    def from_numpy_array(dat: np.array, axes=None, delta=None, coord_min=None):
+    def from_numpy_array(dat: np.array, axes=None, delta=None, coord_min=None, dims=None):
         """
         Build data using a numpy array. Must provide one of the following:
         - An iterable of axes, where each axis is a numpy array
         - An interable of delta and coord_min
         Guarantees regularly gridded coordinates and sorts data so that coordinates are ascending
         """
-        return RegularDataArray(dat, axes=axes, delta=delta, coord_min=coord_min)
+        return RegularDataArray(dat, axes=axes, delta=delta, coord_min=coord_min, dims=dims)
 
     @staticmethod
     def from_xarray(dat: xr.DataArray):
         coord_min = np.array([dat[dim].values[0] for dim in dat.dims])
         delta = np.array([dat[dim].values[1] - dat[dim].values[0] for dim in dat.dims])
-        return RegularDataArray(dat.values, delta=delta, coord_min=coord_min)
+        return RegularDataArray(dat.values, delta=delta, coord_min=coord_min, dims=dat.dims)
 
     @staticmethod
     def from_xarray_irregular(dat: xr.DataArray):
         coord_min = np.array([dat[dim].values[0] for dim in dat.dims])
         delta = np.array([np.mean(np.diff(dat[dim].values)) for dim in dat.dims])
-        return RegularDataArray(dat.values, delta=delta, coord_min=coord_min)
+        return RegularDataArray(dat.values, delta=delta, coord_min=coord_min, dims=dat.dims)
 
 
 class RegularSpacedData(object):

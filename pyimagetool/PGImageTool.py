@@ -409,7 +409,8 @@ class Cursor:
         self._index: List[SingleValueModel] = [SingleValueModel(0) for i in range(data.ndim)]
         self._pos: List[SingleValueModel] = [SingleValueModel(float(self.data.coord_min[i])) for i in range(data.ndim)]
         self._binwidth: List[SingleValueModel] = [SingleValueModel(data.delta[i]) for i in range(data.ndim)]
-        self._binpos: List[List[float]] = [[0, 0] for i in range(data.ndim)]
+        self._binpos: List[List[float]] = [[data.coord_min[i], data.coord_min[i] + data.delta[i]/2]
+                                           for i in range(data.ndim)]
 
     @property
     def pos(self):
@@ -438,12 +439,15 @@ class Cursor:
         return self._index[i].val
 
     def get_index_slice(self, i):
+        """Using the known binwidth and bin positions, calculate a slice in index space
+        Note: if the binwidth <= delta (or the bin index is 1), there will never be any binning
+        """
         if self._binwidth[i].val <= self.data.delta[i]:
             return slice(self._index[i].val, self._index[i].val + 1)
         else:
             mn = int(np.ceil(self.data.scale_to_index(i, self._binpos[i][0])))
             mx = int(np.floor(self.data.scale_to_index(i, self._binpos[i][1])))
-            return slice(mn, mx)
+            return slice(mn, mx + 1)
 
     def get_binwidth(self, i):
         return self._binwidth[i].val

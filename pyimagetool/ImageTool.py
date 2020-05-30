@@ -24,9 +24,13 @@ class ImageTool(QtWidgets.QWidget):
         """
         super().__init__(parent)
         # Warn user about nan
-        if np.any(np.isnan(data.values)):
+        if hasattr(data, 'values'):
+            d = data.values
+        else:
+            d = data
+        if np.any(np.isnan(d)):
             warnings.warn('Input data contains NaNs. All NaN will be set to 0.')
-            data.values[np.isnan(data.values)] = 0
+            d[np.isnan(d)] = 0
         # Create data
         self.data: RegularDataArray = RegularDataArray(data)
         self.it_layout: int = layout

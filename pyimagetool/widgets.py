@@ -32,7 +32,7 @@ class InfoBar(QtWidgets.QWidget):
         self.cursor_c = []  # cursor position in coordinate
         # TODO: set minimize size policy for the spinbox labels for Qt 5.14
         for i in range(data.ndim):
-            label = QtWidgets.QLabel(labels[i])
+            label = QtWidgets.QLabel(self.data.dims[i])
             label.setAlignment(QtCore.Qt.AlignCenter)
             i_sb = QtWidgets.QSpinBox()
             i_sb.setRange(0, data.shape[i] - 1)
@@ -55,7 +55,7 @@ class InfoBar(QtWidgets.QWidget):
         self.bin_i: List[QtWidgets.QSpinBox] = []  # bin width in index notation
         self.bin_c: List[QtWidgets.QDoubleSpinBox] = []  # bin width in coordinate notation
         for i in range(data.ndim):
-            label = QtWidgets.QLabel(labels[i])
+            label = QtWidgets.QLabel(self.data.dims[i])
             label.setAlignment(QtCore.Qt.AlignCenter)
             i_sb = QtWidgets.QSpinBox()
             i_sb.setRange(1, data.shape[i])
@@ -102,7 +102,8 @@ class InfoBar(QtWidgets.QWidget):
             self.cursor_c[i].setRange(data.coord_min[i], data.coord_max[i])
             self.bin_i[i].setRange(1, data.shape[i])
             self.bin_c[i].setRange(data.delta[i], data.coord_max[i] - data.coord_min[i] + data.delta[i])
-
+            self.cursor_labels[i].setText(data.dims[i])
+            self.bin_labels[i].setText(data.dims[i])
 
     def transpose_clicked(self):
         dialog = TransposeDialog(self.data)
