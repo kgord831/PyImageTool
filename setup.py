@@ -24,7 +24,7 @@ setuptools.setup(
         'PyQt5>=5.12.3',
         'numpy>=1.17.4',
         'xarray>=0.14.1',
-        'pyqtgraph==0.10.0'
+        'pyqtgraph==0.11.0'
     ],
     package_data={'pyimagetool': ['cmaps/*.npy', 'cmaps/*.jpg']}
 )
