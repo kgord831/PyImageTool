@@ -1,8 +1,8 @@
 import sys
 import numpy as np
 from PyQt5 import QtWidgets, QtCore
-from ..pyimagetool.DataMatrix import RegularDataArray
-from ..pyimagetool.ImageTool import ImageTool
+from pyimagetool import ImageTool
+from pyimagetool import RegularDataArray
 
 
 def gen_data():
@@ -20,7 +20,7 @@ def gen_data():
     axes = [x, y, z]
     if Nt > 1:
         axes.append(t)
-    return RegularDataArray.from_numpy_array(mat, axes=axes)
+    return RegularDataArray(mat, axes=axes)
 
 
 # Start Qt event loop unless running in interactive mode.

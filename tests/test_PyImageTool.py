@@ -88,14 +88,16 @@ class TestImageTool:
     def test_imagetool_numpy_show(self, qtbot):
         mat = self.make_numpy_data()
         it = ImageTool(mat)
+        qtbot.addWidget(it)
+        assert len(it.info_bar.cursor_i) == 3
         it.show()
-        # qtbot.stopForInteraction()
 
     def test_imagetool_regular_show(self, qtbot):
         dat = self.make_regular_data()
         it = ImageTool(dat)
+        qtbot.addWidget(it)
+        assert len(it.info_bar.cursor_i) == 3
         it.show()
-        # qtbot.stopForInteraction()
 
     def test_imagetool_numpy(self, qtbot):
         mat = self.make_numpy_data()
@@ -175,18 +177,16 @@ class TestImageTool:
     def test_imagetool_transpose(self, qtbot):
         dat = self.make_regular_data()
         it = ImageTool(dat)
-        it.show()
-        qtbot.waitForWindowShown(it)
+        qtbot.addWidget(it)
         it.info_bar.cursor_i[0].setValue(2)
         it.info_bar.cursor_i[1].setValue(1)
         it.info_bar.bin_i[0].setValue(2)
         dat = dat.transpose({0: 1, 1: 0, 2: 2})
-        it.transpose_data({0: 1, 1: 0, 2: 2})
+        it.info_bar.transpose_request.emit({0: 1, 1: 0, 2: 2})
         assert it.info_bar.cursor_labels[0].text() == 'y2'
         assert it.info_bar.cursor_labels[1].text() == 'x4'
         assert it.info_bar.cursor_labels[2].text() == 'z2'
         it.info_bar.bin_i[1].setValue(2)
-        qtbot.waitSignal(it.info_bar.bin_i[1].valueChanged)
         np.testing.assert_almost_equal(it.pg_win.lineplots_data['x'][0].xData, dat.axes[0])
         np.testing.assert_almost_equal(it.pg_win.lineplots_data['y'][0].yData, dat.axes[1])
         np.testing.assert_almost_equal(it.pg_win.lineplots_data['z'][0].yData, dat.axes[2])

@@ -4,8 +4,8 @@ with open("Readme.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="pyimagetool-kgord831", # Replace with your own username
-    version="0.0.2",
+    name="pyimagetool",
+    version="0.0.3",
     author="Kyle Gordon",
     author_email="kgord831@gmail.com",
     description="Python Image Tool for multidimensional analysis",
@@ -22,9 +22,9 @@ setuptools.setup(
     install_requires=[
         'PyQt5-sip>=4.19.18',
         'PyQt5>=5.12.3',
-        'numpy>=1.17.4',
+        'numpy<=1.19.3',
         'xarray>=0.14.1',
-        'pyqtgraph==0.11.0'
+        'pyqtgraph>=0.10.0'
     ],
     package_data={'pyimagetool': ['cmaps/*.npy', 'cmaps/*.jpg']}
 )
