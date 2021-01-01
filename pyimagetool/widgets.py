@@ -1,20 +1,18 @@
 from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
 from typing import List
-import os
-import fnmatch
-from .DataMatrix import RegularDataArray
-from .CMapEditor import list_cmaps, load_ct, load_ct_icon
 from functools import partial
+
+from .DataMatrix import RegularDataArray
+from .cmaps import CMap
 
 
 class InfoBar(QtWidgets.QWidget):
     """Based on the input data, create a suitable info bar (maybe with tabs?)"""
-    transpose_request = QtCore.pyqtSignal(object)
+    transpose_request = QtCore.Signal(object)
 
     def __init__(self, data: RegularDataArray, parent=None):
         super().__init__(parent)
         self.data = data
-        labels = ['X', 'Y', 'Z', 'T']
         if data.ndim > 4:
             raise ValueError("Input data for more than 4 dimensions not supported")
         # The main layout for this widget
@@ -83,10 +81,10 @@ class InfoBar(QtWidgets.QWidget):
         self.cmap_combobox = QtWidgets.QComboBox()
         self.cmap_form_layout.setWidget(0, QtWidgets.QFormLayout.LabelRole, self.cmap_label)
         self.cmap_form_layout.setWidget(0, QtWidgets.QFormLayout.FieldRole, self.cmap_combobox)
-        for cmap in list_cmaps():
-            self.cmap_combobox.addItem(load_ct_icon(cmap), cmap)
+        for cmap in CMap().cmaps:
+            self.cmap_combobox.addItem(CMap().load_icon(cmap), cmap)
         self.cmap_combobox.setIconSize(QtCore.QSize(64, 12))
-        self.cmap_combobox.setCurrentText('viridis')
+        self.cmap_combobox.setCurrentText('blue_orange')
         # Add the group boxes to create this widget
         self.layout().addWidget(self.cursor_group_box)
         self.layout().addWidget(self.bin_group_box)
@@ -113,30 +111,22 @@ class InfoBar(QtWidgets.QWidget):
             self.transpose_request.emit(tr)
 
 
-class AspectRatioForm(object):
+class CMapEditForm:
     def setupUi(self, Form):
-        Form.setObjectName("Form")
+        Form.setObjectName('EditCMap')
         Form.resize(150, 24)
         Form.setMaximumSize(QtCore.QSize(150, 16777215))
         self.gridLayout = QtWidgets.QGridLayout(Form)
         self.gridLayout.setContentsMargins(2, 2, 2, 2)
         self.gridLayout.setSpacing(0)
-        self.gridLayout.setObjectName("gridLayout")
+        self.scale_to_range_label = QtWidgets.QLabel('Coerce colormap to view')
+        self.labels.append(QtWidgets.QLabel(''))
         self.aspectRatio = QtWidgets.QLineEdit(Form)
         self.aspectRatio.setObjectName("aspectRatio")
         self.gridLayout.addWidget(self.aspectRatio, 0, 1, 1, 1)
         self.lockAspect = QtWidgets.QCheckBox(Form)
         self.lockAspect.setObjectName("lockAspect")
         self.gridLayout.addWidget(self.lockAspect, 0, 0, 1, 1)
-
-        self.retranslateUi(Form)
-        QtCore.QMetaObject.connectSlotsByName(Form)
-
-    def retranslateUi(self, Form):
-        _translate = QtCore.QCoreApplication.translate
-        Form.setWindowTitle(_translate("Form", "Form"))
-        self.aspectRatio.setText(_translate("Form", "1"))
-        self.lockAspect.setText(_translate("Form", "Lock Aspect"))
 
 
 class TransposeDialog(QtWidgets.QDialog):
@@ -192,7 +182,7 @@ class TransposeAxesWidget(QtWidgets.QWidget):
         self.main_layout.addLayout(self.ok_cancel_layout)
         self.setLayout(self.main_layout)
 
-    def validate_click(self, i, j, checked):
+    def validate_click(self, i, j):
         """
         If the button i, j was already set (checked = False), then set the i, j button to where it was.
         If the button i, j was not already set, there are exactly two buttons in the same row and column which are also
@@ -200,7 +190,7 @@ class TransposeAxesWidget(QtWidgets.QWidget):
         checked.
         """
         coords = []
-        if checked:
+        if self.buttons[i][j].isChecked():
             for x in range(self.ndim):
                 if x != i:
                     if self.buttons[x][j].isChecked():
@@ -216,8 +206,8 @@ class TransposeAxesWidget(QtWidgets.QWidget):
             self.buttons[i][j].setChecked(True)
 
     def get_transpose(self):
-        """Return a dictionary mapping current index to the new index. Guaranteed to be valid."""
-        mapping = {}
+        """Return a list of dimensions to map to. [1, 0] transposes a 2D array. Guaranteed to be valid."""
+        mapping = [0]*self.ndim
         for i in range(self.ndim):
             for j in range(self.ndim):
                 if self.buttons[i][j].isChecked():

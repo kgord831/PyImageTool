@@ -1,6 +1,6 @@
 # PyImageTool
 
-This is a Python Image Tool which is heavily inspired by the Igor Pro native Image Tool written by the Advanced Light Source (ALS). This project aims to build a highly interactive tool which can be used to rapidly visualize and analyze multidimensional data (up to four dimensions). The project leverages the pyqtgraph library for rapid visualization and is cross-platform.
+This is a Python Image Tool which is heavily inspired by the Igor Pro native Image Tool written by the Advanced Light Source (ALS). This project aims to build a highly interactive tool which can be used to rapidly visualize and analyze multidimensional data (up to four dimensions) using images. The project leverages the pyqtgraph library for rapid visualization and is cross-platform.
 
 ![PyImageTool Demo](usage.gif)
 
@@ -8,14 +8,20 @@ This is a Python Image Tool which is heavily inspired by the Igor Pro native Ima
 
 ### With anaconda
 
-Use the Anaconda Package Manager and install packages from the conda-forge channel when possible. Also, don't be a fool---create a virtual environment.
+Use the Anaconda Package Manager and install packages from the conda-forge channel when possible. I recommend first installing in a virtual environment.
 ```
 conda create --name imagetool
 conda activate imagetool
-conda install -c conda-forge numpy xarray pyqtgraph
+conda install -c conda-forge numpy scipy pillow pyqtgraph
 python setup.py install
 ```
 where the virtual env name ``imagetool`` may be changed for a name of your choice.
+
+*Important*: You should test ``pyqtgraph`` by opening python and running ``import pyqtgraph.examples; pyqtgraph.examples.run()``. If you have never installed PyQt before, you need to install either ``conda install -c conda-forge pyqt`` or ``conda install -c conda-forge pyside2``.
+
+``numpy`` is the workhorse library for fast slicing. ``scipy`` is used for regular grid interpolation. ``pillow`` is used for created images of the colormaps. ``pyqtgraph`` is the workhorse library for data visualization.
+
+This tool is compatible with ``xarray``, if you have it available in your environment.
 
 You can test the install using ``pytest``. Install the ``pytest`` package and then run ``test_PyImageTool.py`` in the ``tests`` subfolder.
 ```
@@ -25,7 +31,7 @@ pytest test_PyImageTool.py
 
 ### With pip
 
-Create a pip virtual environment.
+I recommend using a pip virtual environment.
 ```
 python -m venv imagetool
 ```
@@ -34,17 +40,11 @@ Activate your virtual environment and change into the ``src`` directory where ``
 pip install .
 ```
 
+*Important*: You should test ``pyqtgraph`` by opening python and running ``import pyqtgraph.examples; pyqtgraph.examples.run()``. If you have never installed PyQt before, you need to install either ``pip install PyQt5`` or ``pip install PySide2``.
+
 You can test the install using ``pytest``. Install the ``pytest`` package and then run ``test_PyImageTool.py`` in the ``tests`` subfolder.
 ```
 pip install pytest pytest-qt
-pytest test_PyImageTool.py
-```
-
-## Testing
-
-You can test the installation with ``pytest`` and ``pytest-qt`` using ``test_PyImageTool.py`` in the ``tests`` subfolder. If you don't have these in your env, install them.
-```
-conda install -c conda-forge pytest pytest-qt
 pytest test_PyImageTool.py
 ```
 
@@ -52,23 +52,24 @@ pytest test_PyImageTool.py
 
 ### Controls
 - Hold shift to drag the cursors to mouse location.
-- While hovering over the cursor index or cursor coordinate spinbox, use the middle mouse wheel to move by increments of 1. Hold control and scroll middle mouse wheel to move by increments of 10
+- While hovering over the cursor index or cursor coordinate spinbox, use the middle mouse wheel to move by increments of 1
+- Hold control and scroll middle mouse wheel to move by increments of 10
 - Left-click and drag to move image/plot
 - Right-click and drag to resize (horizontal drag resizes horizontally, vertical drag resizes vertically)
 - Ctrl+A will undo manipulations to view all data
-- Right-click to open a menu. If you right-click on an image, you can set the aspect ratio
-- Export feature currently not working
+- Right-click to open a menu.
+  - If you right-click on an image, you can set aspect ratio and make quick edits to the colormap
+  - You can export images and line cuts to png files
+- If you return the ImageTool object to a variable in the Python kernel, you can access a slice of the data at any time using the ``tool.get()`` function. See above for example.
 
 ### Editing Colormaps
-- Right-click image, and select "Edit Color Map"
+- Right-click image, hover over "Color Map" and select "Edit Color Map"
 - Color map normalizations on top, choices are "Power Law" or "Piecewise." Power law useful for quickly rescaling to make weak features stronger or vice versa with the gamma control, but piecewise gives you much more control.
 - You can always see how the colormap is changing in the top right image of the colorbar.
-- Bottom right is a histogram of the data. The x-axis is the value in the data and the y-axis is normalized weight at that value. For example, an image of a gaussian (z = exp(-x^2-y^2)) would have a large amount of weight at x-axis=0 falling off rapidly to almost zero at x-axis=1 (because there is only one point where z = 1 which is at x=0, y=0 in the image).
-- As the cursor scans the histogram, an isosurface appears in the data showing the contours of constant value. Because the algorithm that computes the isocurve is pure python, it is slow. If the tool noticeably slows down, consider disabling the isocurve calculations by unticking the box in the top left.
+- Bottom right is a histogram of the data. The x-axis is the value in the data and the y-axis is normalized weight at that value. For example, an image of a gaussian (``z = exp(-x^2-y^2)``) would have a large amount of weight at x-axis=0 falling off rapidly to almost zero at x-axis=1 (because there is only one point where ``z = 1`` which is at ``x=0``, ``y=0`` in the image).
+- You can scan the vertical bar in the histogram which controls the isocurve level. Because the algorithm that computes the isocurve is pure python, it is slow. If the tool noticeably slows down, consider disabling the isocurve calculations by unticking the box in the top left.
 - In addition to the histogram, a line is drawn representing how values in your data is mapped to the colorbar. Imagine the colorbar is the y-axis and values in the image are on the x-axis. By default, color scales are linear. As you change gamma in power-law mode, you will see this curve become nonlinear, as the colorbar will noticeably deform.
 - If the color map editor is in piecewise mode, you can drag points representing the max and min of the color scale. Furthermore, by right-clicking in the histogram area, you can add more points. This is useful for forcing your colorbar to highlight a region between two isosurfaces.
-
-You are of course welcome and encouraged to install matplotlib along with this tool for rendering your high quality figures.
 
 ## Examples
 
@@ -77,11 +78,12 @@ In the ``examples`` folder, you will find a few scripts and a Jupyter Notebook t
 ## Goals
 - [ ] Downsample data
 - [ ] Export custom colormaps to matplotlib
-- [ ] Export data to Jupyter notebook
 - [ ] Import common multidimensional data files (HDF5)
 - [ ] Create an equivalent matplotlib figure given a plot/image
 - [ ] Layout management
-- [ ] Color ROI
+- [ ] Aribtrary line cuts in multidimensional data
+- [x] Color ROI, on an image plot, ``Right click -> Color Map -> Scale to view``
+- [x] Export data to Jupyter notebook, ``tool = imagetool(data); tool.get('xy')``
 
 ## Colormaps
 

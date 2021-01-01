@@ -1,33 +1,40 @@
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui, QtCore, QtWidgets
-import os
 from typing import List, Union
-import fnmatch
 import numpy as np
 import pickle
+from functools import partial
+
+from .pgwidgets import ImageBase
+from .cmaps import CMap
 
 
 class CMapDialog(QtWidgets.QDialog):
 
-    def __init__(self, image, parent=None):
+    def __init__(self, dat, parent=None):
         super().__init__(parent)
         self.setModal(True)
-        self.widget = CMapEditor(image, parent=self)
+        self.widget = CMapEditor(dat, parent=self)
         self.setLayout(QtWidgets.QVBoxLayout())
         self.layout().addWidget(self.widget)
         self.widget.ok_button.clicked.connect(self.accept)
         self.widget.cancel_button.clicked.connect(self.reject)
 
+
 class CMapEditor(QtWidgets.QWidget):
 
-    def __init__(self, image, parent=None):
+    def __init__(self, data, parent=None):
         super().__init__(parent)
 
         # Layout management
         self.main_layout = QtWidgets.QVBoxLayout()
+        self.main_layout.setObjectName('Main layout')
         self.header_layout = QtWidgets.QHBoxLayout()
+        self.header_layout.setObjectName('Header layout')
         self.cmap_norm_layout = QtWidgets.QHBoxLayout()
+        self.cmap_norm_layout.setObjectName('CMap Normalization layout')
         self.gamma_layout = QtWidgets.QVBoxLayout()
+        self.gamma_layout.setObjectName('Gamma layout')
         self.gamma_value_layout = QtWidgets.QHBoxLayout()
         self.piecewise_layout = QtWidgets.QVBoxLayout()
         self.cmap_layout = QtWidgets.QVBoxLayout()
@@ -66,11 +73,13 @@ class CMapEditor(QtWidgets.QWidget):
         self.cmap_combobox = QtWidgets.QComboBox()
         self.cmap_combobox.setMinimumSize(150, 0)
         self.header = QtWidgets.QWidget()
+        self.header.setLayout(self.header_layout)
         self.splitter = QtWidgets.QSplitter()
         self.splitter.setOrientation(QtCore.Qt.Vertical)
-        self.pg_win = PGCMapEditor(image)
+        self.pg_win = PGCMapEditor(data)
         self.pg_widget = QtWidgets.QWidget()
-        self.pg_widget.setSizePolicy(QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Maximum))
+        self.pg_widget.setSizePolicy(QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred,
+                                                           QtWidgets.QSizePolicy.Maximum))
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.pg_win)
         self.pg_widget.setLayout(layout)
@@ -81,14 +90,14 @@ class CMapEditor(QtWidgets.QWidget):
 
         # Populate the combo box
         self.cmap_combobox.setInsertPolicy(QtWidgets.QComboBox.InsertAlphabetically)
-        for cmap in list_cmaps():
-            self.cmap_combobox.addItem(load_ct_icon(cmap), cmap)
+        for cmap in CMap().cmaps:
+            self.cmap_combobox.addItem(CMap().load_icon(cmap), cmap)
         # for filename in os.listdir('cmaps'):
         #     if fnmatch.fnmatch(filename, '*.npy'):
         #         cmap_name = os.path.splitext(filename)[0]
         #         self.cmap_combobox.addItem(QtGui.QIcon('cmaps' + os.sep + cmap_name + '.jpg'), cmap_name)
         self.cmap_combobox.setIconSize(QtCore.QSize(64, 12))
-        self.cmap_combobox.setCurrentText('viridis')
+        self.cmap_combobox.setCurrentText('blue_orange')
         def update_cmap(cmap_name):
             self.pg_win.load_ct(cmap_name)
             self.pg_win.update()
@@ -105,10 +114,9 @@ class CMapEditor(QtWidgets.QWidget):
         self.load_map_button.clicked.connect(self.load_cmap_clicked)
 
         # Initialize
-        update_cmap('viridis')
+        update_cmap('blue_orange')
 
         # Add widgets
-        self.main_layout.addLayout(self.header_layout)
         self.header_layout.addLayout(self.cmap_norm_layout)
         self.cmap_norm_layout.addLayout(self.gamma_layout)
         self.gamma_layout.addWidget(self.power_law_radio)
@@ -126,7 +134,6 @@ class CMapEditor(QtWidgets.QWidget):
         self.header_layout.addLayout(self.cmap_layout)
         self.cmap_layout.addWidget(self.cmap_label)
         self.cmap_layout.addWidget(self.cmap_combobox)
-        self.header.setLayout(self.header_layout)
         self.splitter.addWidget(self.header)
         self.splitter.addWidget(self.pg_widget)
         self.splitter.setStretchFactor(0, 1)  # resizes the pg.GraphicsLayoutWidget against the header
@@ -205,22 +212,18 @@ class CMapEditor(QtWidgets.QWidget):
     def get_lut(self):
         return self.pg_win.lut
 
-    @QtCore.pyqtSlot(bool)
     def reset_clicked(self, checked):
         self.pg_win.hist_graph.reset()
         self.pg_win.update()
 
-    @QtCore.pyqtSlot(bool)
     def piecewise_clicked(self, checked):
         self.enable_piecewise()
         self.pg_win.update()
 
-    @QtCore.pyqtSlot(bool)
     def power_law_clicked(self, checked):
         self.enable_gamma()
         self.pg_win.update()
 
-    @QtCore.pyqtSlot(bool)
     def enable_isocurve_clicked(self, checked):
         self.enable_isocurve = checked
         self.pg_win.set_iso_enabled(checked)
@@ -229,7 +232,6 @@ class CMapEditor(QtWidgets.QWidget):
         else:
             self.pg_win.iso.hide()
 
-    @QtCore.pyqtSlot(int)
     def gamma_spinbox_slot(self, slider_value):
         self.gamma_spinbox.blockSignals(True)
         self.gamma_spinbox.setValue(10**(slider_value/20))
@@ -237,7 +239,6 @@ class CMapEditor(QtWidgets.QWidget):
         self.pg_win.gamma = self.gamma_spinbox.value()
         self.pg_win.update()
 
-    @QtCore.pyqtSlot(float)
     def gamma_slider_slot(self):
         self.gamma_slider.blockSignals(True)
         self.gamma_slider.setValue(round(20*np.log10(self.gamma_spinbox.value())))
@@ -245,41 +246,39 @@ class CMapEditor(QtWidgets.QWidget):
         self.pg_win.gamma = self.gamma_spinbox.value()
         self.pg_win.update()
 
-    @QtCore.pyqtSlot(bool)
     def save_cmap_clicked(self):
         filename, ext = QtWidgets.QFileDialog.getSaveFileName(self, 'Save Color Map', '',
                                                               'PyIT CMap (*.cmap);;All Files (*)')
         self.save_cmap(filename)
 
-    @QtCore.pyqtSlot(bool)
     def load_cmap_clicked(self):
         filename, ext = QtWidgets.QFileDialog.getOpenFileName(self, 'Load Color Map', '',
                                                               'PyIT CMap (*.cmap);;All Files (*)')
         self.load_cmap(filename)
 
 class PGCMapEditor(pg.GraphicsLayoutWidget):
-    def __init__(self, image, parent=None):
+    def __init__(self, data, parent=None):
         super().__init__(parent)
 
         self.lut = np.empty((256, 3), dtype=np.uint8)
-        self.ct = np.array([])
-        self.ct_name = 'inferno'
-        self.load_ct(self.ct_name)
+        self.ct = CMap().load_ct('blue_orange')
+        self.ct_name = 'blue_orange'
         self.gamma = 1
         self.cmap_piecewise = False
 
         # make image view
-        self.view = pg.PlotItem()
-        self.imageItem = pg.ImageItem()
-        self.view.addItem(self.imageItem)
+        self.view = ImageBase(data)
+        self.imageItem = self.view.img
 
         # preprocess image
+        image = data.values
         self.img_min = image.min()
         self.img_max = image.max()
         image = (image - self.img_min)/(self.img_max - self.img_min)
 
         # make isocurve
         self.iso = pg.IsocurveItem(pen=pg.mkPen(color='g'))
+        self.iso.setTransform(self.imageItem.transform())
         self.iso_enabled = True
 
         # calculate histogram
@@ -300,16 +299,24 @@ class PGCMapEditor(pg.GraphicsLayoutWidget):
         self.gradient.setStops([(i/255, QtGui.QColor(*tuple(self.ct[i]))) for i in range(256)])
         self.color_bar.setBrush(QtGui.QBrush(self.gradient))
 
-        self.color_bar_line = pg.InfiniteLine(bounds=(self.bin_edges[0], self.bin_edges[-1]))
+        self.color_bar_line = pg.InfiniteLine(bounds=(self.bin_edges[0], self.bin_edges[-1]), movable=True)
 
         # histogram
         self.histogram = pg.PlotItem()
         self.hist_data = self.histogram.plot(self.bin_midpoints, self.hist)
 
         # histogram line and position label
-        self.hist_line = pg.InfiniteLine(bounds=(self.bin_edges[0], self.bin_edges[-1]))
+        self.hist_line = pg.InfiniteLine(bounds=(self.bin_edges[0], self.bin_edges[-1]), movable=True)
+        self.hist_line.setZValue(0)
         self.hist_line_label = pg.TextItem(anchor=(0.5, 0.5))
         self.hist_line_label.setPos(self.bin_midpoints[128], self.hist.max())
+
+        # connect the colorbar line and histogram line
+        def hist_callback(dragged_line, other_line, iso, _=None):
+            other_line.setValue(dragged_line.value())
+            iso.setLevel(dragged_line.value())
+        self.hist_line.sigDragged.connect(partial(hist_callback, self.hist_line, self.color_bar_line, self.iso))
+        self.color_bar_line.sigDragged.connect(partial(hist_callback, self.color_bar_line, self.hist_line, self.iso))
 
         # add menus to the histogram line
         self.histogram.vb.menu.addSeparator()
@@ -319,7 +326,8 @@ class PGCMapEditor(pg.GraphicsLayoutWidget):
         self.add_point_action.triggered.connect(self.add_piecewise_point)
 
         # histogram piecewise line
-        self.hist_graph = Graph(pos=np.array([[self.bin_midpoints[0], self.hist.min()], [self.bin_midpoints[-1], self.hist.max()]]), adj=np.array([[0, 1]]))
+        self.hist_graph = Graph(pos=np.array([[self.bin_midpoints[0], self.hist.min()],
+                                              [self.bin_midpoints[-1], self.hist.max()]]), adj=np.array([[0, 1]]))
         self.hist_graph.setVisible(False)
 
         # histogram power law line
@@ -362,11 +370,7 @@ class PGCMapEditor(pg.GraphicsLayoutWidget):
     def hist_hover_handler(self, evt: tuple):
         if self.histogram.sceneBoundingRect().contains(evt[0]):
             mousepnt = self.histogram.vb.mapSceneToView(evt[0])
-            if self.iso_enabled:
-                self.iso.setLevel(mousepnt.x())
-            self.color_bar_line.setValue(mousepnt.x())
-            self.hist_line.setValue(mousepnt.x())
-            self.hist_line_label.setText("{0:.3g}".format(self.color_bar_line.value()*(self.img_max - self.img_min) + self.img_min))
+            self.hist_line_label.setText("{0:.3g}".format(mousepnt.x()*(self.img_max - self.img_min) + self.img_min))
 
     def update_cmap_norm(self):
         if not self.hist_graph.enabled:
@@ -382,7 +386,7 @@ class PGCMapEditor(pg.GraphicsLayoutWidget):
         - plasma
         - CET color maps (https://peterkovesi.com/projects/colourmaps/)
         """
-        lut = load_ct(cmap_name)
+        lut = CMap().load_ct(cmap_name)
         if lut is not None:
             self.ct = lut
             self.ct_name = cmap_name
@@ -419,6 +423,7 @@ class PGCMapEditor(pg.GraphicsLayoutWidget):
         else:
             self.mousepnt = None
 
+
 class Graph(pg.GraphItem):
     color_map_changed = QtCore.Signal()
 
@@ -432,6 +437,8 @@ class Graph(pg.GraphItem):
         self.ind = np.arange(256).astype('uint8')
         self.enabled = False  # False if power law, True if piecewise
         super().__init__(**kwargs)
+        self.scatter.setAcceptHoverEvents(True)
+        self.scatter.setZValue(1)
 
     def reset(self):
         self.setData(pos=self.init_pos.copy(), adj=self.init_adj.copy())
@@ -463,12 +470,14 @@ class Graph(pg.GraphItem):
         pg.GraphItem.setData(self, **self.data)
         self.mapPosToIndex()
 
+    def hoverEvent(self, ev):
+        if not ev.isExit():
+            pts = self.scatter.pointsAt(ev.pos())
+            if len(pts) > 0:
+                ev.acceptDrags(QtCore.Qt.LeftButton)
+
     def mouseClickEvent(self, ev):
         ev.ignore()
-        for rect in self.scatter.data['targetRect']:
-            if rect is not None:
-                if rect.contains(ev.scenePos()):
-                    pass  # TODO: delete the point here
 
     def mouseDragEvent(self, ev):
         if ev.button() != QtCore.Qt.LeftButton or not self.enabled:
@@ -584,43 +593,6 @@ class ColorbarElement(pg.GraphicsObject):
         p.drawPath(self.path)
 
 
-def get_cmap_dir():
-    dirname = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(dirname, 'cmaps')
-
-
-def list_cmaps():
-    cmaps = []
-    for filename in os.listdir(get_cmap_dir()):
-        if fnmatch.fnmatch(filename, '*.npy'):
-            cmaps.append(os.path.splitext(filename)[0])
-    return cmaps
-
-
-def load_ct(cmap_name: str = 'viridis'):
-    path = get_cmap_dir() + os.sep + cmap_name + '.npy'
-    if os.path.isfile(path):
-        ct = np.load(path)
-        if ct.shape[0] != 256:
-            ct = PGCMapEditor.interp_cmap_256(ct)
-        return ct
-    else:
-        print(get_cmap_dir(), path)
-        print('Color map [{}] not found!'.format(cmap_name))
-        return None
-
-
-def load_ct_icon(cmap_name: str = 'viridis'):
-    path = get_cmap_dir() + os.sep + cmap_name + '.jpg'
-    if os.path.isfile(path):
-        icon = QtGui.QIcon(path)
-        return icon
-    else:
-        print(get_cmap_dir(), path)
-        print('Color map icon [{}] not found!'.format(cmap_name))
-        return None
-
-
 def interp_cmap_256(ct: np.array):
     """
     Given an array of size (M, 3), where M is not equal to 256, this will linearly interpolate each channel to create
@@ -631,28 +603,22 @@ def interp_cmap_256(ct: np.array):
     b = np.interp(np.arange(256), np.arange(ct.shape[0]) / (ct.shape[0] - 1) * 255, ct[:, 2])
     return np.array([r, g, b]).T
 
+
 # Start Qt event loop unless running in interactive mode.
-if __name__ == '__main__':
+def test():
     import sys
+    from .data import triple_cross_2d
     app = QtWidgets.QApplication([])
 
     # generate data
-    import numpy as np
-    x = np.linspace(-3, 3, 101)
-    y = np.linspace(-5, 5, 101)
-    X, Y = np.meshgrid(x, y, indexing='ij')
-    gamma1 = 2
-    gamma2 = 0.9
-    gamma3 = 0.8
-    img = gamma1**2/((Y - X**2)**2 + gamma1**2) + gamma2**2/((Y + (1 + X**2))**2 + gamma2**2) + gamma3**2/((Y - np.cos(X))**2 + gamma3**2)
-    img += np.random.rand(*img.shape)*(img.max()/20)
+    dat = triple_cross_2d()
 
     # import matplotlib.pyplot as plt
     # plt.imshow(img.T, cmap='inferno', origin='lower')
     # plt.colorbar()
     # plt.show()
 
-    cmap_editor = CMapEditor(img)
+    cmap_editor = CMapEditor(dat)
 
     cmap_editor.show()
 
