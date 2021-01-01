@@ -1,11 +1,14 @@
 import setuptools
+from pathlib import Path
 
-with open("Readme.md", "r") as fh:
+setup_path = Path(__file__).parent
+
+with open(Path(setup_path, 'Readme.md'), "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="pyimagetool",
-    version="0.0.3",
+    version="1.0",
     author="Kyle Gordon",
     author_email="kgord831@gmail.com",
     description="Python Image Tool for multidimensional analysis",
@@ -18,13 +21,15 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.6',
+    python_requires='>=3.7.9',
     install_requires=[
-        'PyQt5-sip>=4.19.18',
-        'PyQt5>=5.12.3',
-        'numpy<=1.19.3',
-        'xarray>=0.14.1',
-        'pyqtgraph>=0.10.0'
+        'numpy',
+        'pyqtgraph',
+        'scipy',
+        'Pillow'
     ],
-    package_data={'pyimagetool': ['cmaps/*.npy', 'cmaps/*.jpg']}
+    package_data={'pyimagetool': ['cmaps/data/scivis_cmaps/*.xml',
+                                  'cmaps/data/CETperceptual_csv_0_255/*.csv',
+                                  'cmaps/data/*.npy', 'cmaps/data/*.jpg',
+                                  'data/*.npy']}
 )

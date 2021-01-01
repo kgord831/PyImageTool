@@ -4,58 +4,6 @@ from PyQt5 import QtWidgets, QtCore
 from pyimagetool import ImageTool, RegularDataArray
 
 
-class TestRegularDataArray:
-    @staticmethod
-    def make_5d():
-        mat = np.arange(3*4*5*6*7*8).reshape((3, 4, 5, 6, 7, 8))
-        dat = RegularDataArray(mat, delta=[2, 3, 4, 5, 6, 7], coord_min=[-1, -2, -3, -4, -5, -6])
-        return dat
-
-    def test_numpy_1d(self):
-        # 1D Tests
-        x = np.arange(9)
-        y = RegularDataArray(x)
-        assert len(y.delta) == 1
-        assert y.delta[0] == 1
-        assert y.coord_min[0] == 0
-        y = RegularDataArray(x, axes=[3*np.arange(9) + 3])
-        assert y.delta[0] == 3
-        assert y.offset[0] == 3
-
-    def test_numpy_2d(self):
-        # 2D Tests
-        mat = np.arange(20).reshape(4, 5)
-        dat = RegularDataArray(mat, delta=[3, 5], coord_min=[6, 1])
-        assert dat.dims == ('x', 'y')
-        dat_cr = dat.sel({'x': slice(8, 13), 'y': slice(5, 17)})
-        assert np.all(dat_cr.values == np.array([[6, 7, 8], [11, 12, 13]]))
-        assert dat_cr.offset[0] == 9
-        assert dat_cr.delta[0] == 3
-        dat_cr = dat.isel({'x': slice(0, 3), 'y': slice(0, 2)})
-        assert np.all(dat_cr.values == np.array([[0, 1], [5, 6], [10, 11]]))
-
-    def test_constructor(self):
-        mat = np.arange(20).reshape(4, 5)
-        dat = RegularDataArray(mat, delta=[3, 5], coord_min=[6, 1], dims=('mydim_x', 'mydim_y'))
-        assert dat.dims == ('mydim_x', 'mydim_y')
-        dat_cr = dat.sel({'mydim_x': slice(8, 13), 'mydim_y': slice(5, 17)})
-        dat = RegularDataArray(dat_cr)
-        assert np.all(dat_cr.values == dat.values)
-
-    def test_transpose(self):
-        dat = self.make_5d()
-        assert dat.dims == ('x', 'y', 'z', 't', 'dim_4', 'dim_5')
-        dat = dat.transpose({0: 2, 1: 3, 2: 0, 3: 1, 4: 5, 5: 4})
-        assert dat.dims == ('z', 't', 'x', 'y', 'dim_5', 'dim_4')
-
-    def test_scaleindex(self):
-        dat = self.make_5d()
-        assert dat.scale_to_index(2, 1) == pytest.approx(1)
-        assert dat.scale_to_index(2, 3) == pytest.approx(1.5)
-        assert dat.index_to_scale(2, 2) == pytest.approx(5)
-        assert dat.index_to_scale(2, 2.5) == pytest.approx(7)
-
-
 class TestImageTool:
     @staticmethod
     def make_regular_data():
@@ -70,7 +18,7 @@ class TestImageTool:
                          [1, 8]]])
         delta = [2, 5, 7]
         coord_min = [0, 1, 2]
-        return RegularDataArray.from_numpy_array(mat, dims=('x4', 'y2', 'z2'), delta=delta, coord_min=coord_min)
+        return RegularDataArray(mat, dims=('x4', 'y2', 'z2'), delta=delta, coord_min=coord_min)
 
     @staticmethod
     def make_numpy_data():
@@ -145,6 +93,7 @@ class TestImageTool:
         it.info_bar.cursor_i[0].setValue(2)
         it.info_bar.cursor_i[1].setValue(1)
         it.info_bar.bin_i[0].setValue(2)
+        qtbot.waitSignal(it.pg_win.cursor._binwidth[0].value_set, timeout=3000)
         assert it.info_bar.bin_c[0].value() == pytest.approx(2*dat.delta[0])
         np.testing.assert_almost_equal(it.pg_win.lineplots_data['x'][0].yData, dat.values[:, 1, 0])
         np.testing.assert_almost_equal(it.pg_win.lineplots_data['y'][0].xData,
@@ -181,8 +130,10 @@ class TestImageTool:
         it.info_bar.cursor_i[0].setValue(2)
         it.info_bar.cursor_i[1].setValue(1)
         it.info_bar.bin_i[0].setValue(2)
-        dat = dat.transpose({0: 1, 1: 0, 2: 2})
-        it.info_bar.transpose_request.emit({0: 1, 1: 0, 2: 2})
+        dat = dat.transpose([1, 0, 2])
+        it.info_bar.transpose_request.emit([1, 0, 2])
+        # dat = dat.transpose({0: 1, 1: 0, 2: 2})
+        # it.info_bar.transpose_request.emit({0: 1, 1: 0, 2: 2})
         assert it.info_bar.cursor_labels[0].text() == 'y2'
         assert it.info_bar.cursor_labels[1].text() == 'x4'
         assert it.info_bar.cursor_labels[2].text() == 'z2'

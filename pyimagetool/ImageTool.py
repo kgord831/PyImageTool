@@ -1,13 +1,20 @@
-from .widgets import InfoBar
-from .PGImageTool import PGImageTool
-from .DataMatrix import RegularDataArray
 from pyqtgraph.Qt import QtCore, QtWidgets
 from functools import partial
 from typing import Union
 import pyqtgraph as pg
 import numpy as np
-import xarray as xr
 import warnings
+
+from .widgets import InfoBar
+from .PGImageTool import PGImageTool
+from .DataMatrix import RegularDataArray
+
+try:
+    import xarray as xr
+    DataType = Union[RegularDataArray, np.array, xr.DataArray]
+except ImportError:
+    xr = None
+    DataType = Union[RegularDataArray, np.array]
 
 
 class ImageTool(QtWidgets.QWidget):
@@ -15,7 +22,7 @@ class ImageTool(QtWidgets.QWidget):
     LayoutComplete = PGImageTool.LayoutComplete
     LayoutRaster = PGImageTool.LayoutRaster
 
-    def __init__(self, data: Union[RegularDataArray, np.array, xr.DataArray],
+    def __init__(self, data: DataType,
                  layout: int = PGImageTool.LayoutSimple, parent=None):
         """Create an ImageTool QWidget.
         :param data: A RegularDataArray, numpy.array, or xarray.DataArray
@@ -61,34 +68,47 @@ class ImageTool(QtWidgets.QWidget):
 
     def build_handlers(self):
         # Connect index spin box to model
+        # -------------------------------
+        def update_spinbox_view(spinbox: QtWidgets.QSpinBox, i: int):
+            spinbox.blockSignals(True)
+            spinbox.setValue(i)
+            spinbox.blockSignals(False)
+
         for i, sb in enumerate(self.info_bar.cursor_i):
             sb.valueChanged.connect(partial(self.pg_win.cursor.set_index, i))
-            self.pg_win.cursor.index[i].value_changed.connect(sb.setValue)
+            self.pg_win.cursor.index[i].value_set.connect(partial(update_spinbox_view, sb))
 
         # Connect coordinate spin box to model
-        def on_cursor_dsb_changed(spinbox, handler):
-            handler(spinbox.value())
+        # ------------------------------------
+        def control_doublespinbox(doublespinbox: QtWidgets.QDoubleSpinBox, handler):
+            handler(doublespinbox.value())
+
+        def update_doublespinbox_view(doublespinbox: QtWidgets.QDoubleSpinBox, v: float):
+            doublespinbox.blockSignals(True)
+            doublespinbox.setValue(v)
+            doublespinbox.blockSignals(False)
 
         for i, dsb in enumerate(self.info_bar.cursor_c):
-            coord = self.pg_win.index_to_coord[i]
-            dsb.editingFinished.connect(partial(on_cursor_dsb_changed,
-                                                dsb,
+            dsb.editingFinished.connect(partial(control_doublespinbox, dsb,
                                                 partial(self.pg_win.cursor.set_pos, i)))
-            self.pg_win.cursor.pos[i].value_changed.connect(dsb.setValue)
+            self.pg_win.cursor.pos[i].value_set.connect(partial(update_doublespinbox_view, dsb))
 
         # Connect binwidth to model
+        # -------------------------
         for i, sb in enumerate(self.info_bar.bin_i):
             sb.valueChanged.connect(partial(self.pg_win.cursor.set_binwidth_i, i))
-            self.pg_win.cursor.bin_width[i].value_changed.connect(partial(self.binwidth_sb_handler, i, sb))
+            self.pg_win.cursor.binwidth[i].value_set.connect(partial(self.update_binwidth_index_view,
+                                                                     sb, i))
 
         for i, dsb in enumerate(self.info_bar.bin_c):
-            dsb.editingFinished.connect(partial(on_cursor_dsb_changed,
-                                                dsb,
+            dsb.editingFinished.connect(partial(control_doublespinbox, dsb,
                                                 partial(self.pg_win.cursor.set_binwidth, i)))
-            self.pg_win.cursor.bin_width[i].value_changed.connect(dsb.setValue)
+            self.pg_win.cursor.binwidth[i].value_set.connect(partial(update_doublespinbox_view, dsb))
 
-    def binwidth_sb_handler(self, i, sb, newval):
-        sb.setValue(int(round(newval/self.data.delta[i])))
+    def update_binwidth_index_view(self, spinbox, i, newvalue):
+        spinbox.blockSignals(True)
+        spinbox.setValue(round(newvalue/self.data.delta[i]))
+        spinbox.blockSignals(False)
 
     def reset(self):
         # Create info bar and ImageTool PyQt Widget
@@ -114,3 +134,24 @@ class ImageTool(QtWidgets.QWidget):
             self.pg_win.set_crosshair_to_mouse()
         else:
             e.ignore()
+
+    def get(self, plot: str):
+        """Get a slice of the data shown in ImageTool.
+
+        :param plot: should be one of ``x``, ``y``, ``z``, ``xy``, ``zy``, ``xt``, etc. depending on the plotted data
+        :type plot: str
+        :return: If returning an image, will return RegularDataArray. Otherwise, returns a tuple of x, y
+        """
+        # TODO: make plot items display RegularDataArray and consistently return a RegularDataArray
+        plot = plot.lower()
+        if plot in self.pg_win.imgs.keys():
+            return self.pg_win.imgs[plot].data
+        elif plot in self.pg_win.lineplots_data.keys():
+            p = self.pg_win.lineplots_data[plot]
+            if p[1] == 'h':
+                return p[0].xData, p[0].yData
+            else:
+                return p[0].yData, p[0].xData
+        else:
+            legalvalues = list(self.pg_win.imgs.keys()) + list(self.pg_win.lineplots_data.keys())
+            raise ValueError(f'plot {plot} not found in this ImageTool. Should be one of {legalvalues}')

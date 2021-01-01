@@ -1,72 +1,80 @@
-from pyqtgraph import QtCore
+from pyqtgraph.Qt import QtCore
+import math
 
 
-class IntModel(QtCore.QObject):
+class SingleValueModel(QtCore.QObject):
     """A cursor position is either a float or int (determined at instantiation) and preserves the type in assignment.
     Furthermore, the object emits either an int or float pyqtSignal when the value is changed through the setter."""
-    value_changed = QtCore.Signal(int)
+    value_set = QtCore.Signal(object)
 
-    def __init__(self, val: int):
+    def __init__(self, val: object):
         super().__init__()
-        self._val = val
+        self._value = val
+
+    def __repr__(self):
+        return f"Model[{self._value}]"
+
+    def __str__(self):
+        return self.__repr__()
+
+    def set_value(self, newval, block=False):
+        self._value = newval
+        if not block:
+            self.value_set.emit(self._value)
 
     @property
-    def val(self):
-        return self._val
+    def value(self):
+        return self._value
 
-    @val.setter
-    def val(self, newval):
-        if isinstance(newval, int):
-            self._val = newval
-        else:
-            try:
-                self._val = int(newval)
-            except TypeError as e:
-                raise e
-        self.value_changed.emit(self._val)
-
-    @QtCore.pyqtSlot(int)
-    def on_value_changed(self, newval):
-        self.val = newval
+    @value.setter
+    def value(self, newval):
+        self.set_value(newval, block=False)
 
 
-class FloatModel(QtCore.QObject):
-    """A cursor position is either a float or int (determined at instantiation) and preserves the type in assignment.
-    Furthermore, the object emits either an int or float pyqtSignal when the value is changed through the setter."""
-    value_changed = QtCore.Signal(float)
+class ValueLimitedModel(SingleValueModel):
+    def __init__(self, val, lower=None, upper=None):
+        super().__init__(val)
+        self._lower_lim = lower
+        self._upper_lim = upper
 
-    def __init__(self, val: float):
-        super().__init__()
-        self._val = val
+    def __repr__(self):
+        return f"Model[{self._value}, {(self._lower_lim, self._upper_lim)}]"
+
+    def __str__(self):
+        return self.__repr__()
 
     @property
-    def val(self):
-        return self._val
+    def lower_lim(self):
+        return self._lower_lim
 
-    @val.setter
-    def val(self, newval):
-        if isinstance(newval, float):
-            self._val = newval
-        else:
-            try:
-                self._val = float(newval)
-            except TypeError as e:
-                raise e
-        self.value_changed.emit(self._val)
+    @lower_lim.setter
+    def lower_lim(self, newval):
+        self._lower_lim = newval
+        self.value = self._value
 
-    @QtCore.pyqtSlot(float)
-    def on_value_changed(self, newval):
-        self.val = newval
+    @property
+    def upper_lim(self):
+        return self._upper_lim
 
+    @upper_lim.setter
+    def upper_lim(self, newval):
+        self._upper_lim = newval
+        self.value = self._value
 
-class DataModel:
-    """A cursor position is either a float or int (determined at instantiation) and preserves the type in assignment.
-    Furthermore, the object emits either an int or float pyqtSignal when the value is changed through the setter."""
-    value_changed = QtCore.Signal(object)
+    def set_value(self, newval, block=False):
+        if self._lower_lim is not None and newval < self._lower_lim:
+            newval = self._lower_lim
+        if self._upper_lim is not None and newval > self._upper_lim:
+            newval = self._upper_lim
+        self._value = newval
+        if not block:
+            self.value_set.emit(self._value)
+        return self._value
 
-    def __init__(self, ndim: int):
-        self.ndim = ndim
-        self.pos = [FloatModel(0)]*ndim
-        self.index = [IntModel(0)]*ndim
-        self.bincoordwidth = [0]*ndim
-        self.binindexwidth = [1]*ndim
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, newval):
+        self.set_value(newval, block=False)
